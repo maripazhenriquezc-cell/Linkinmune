@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>InmunoDefensores: Respuesta Celular (Kurzgesagt Edition)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Fredoka', cursive, sans-serif;
+            touch-action: none;
+            user-select: none;
+        }
+        canvas {
+            box-shadow: 0 10px 35px rgba(0,0,0,0.6), 0 0 25px rgba(244, 63, 94, 0.25);
+            background: radial-gradient(circle at center, #210712 0%, #0a0205 100%);
+        }
+        .glow-text {
+            text-shadow: 0 0 12px rgba(244, 63, 94, 0.7);
+        }
+        .glow-box {
+            box-shadow: 0 0 20px rgba(244, 63, 94, 0.4);
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col items-center justify-center p-2 sm:p-4 overflow-hidden select-none">
+
+    <!-- Top UI Header -->
+    <header class="w-full max-w-4xl flex justify-between items-center mb-2 px-4 py-2 bg-slate-900/90 rounded-2xl border border-rose-900/50 backdrop-blur shadow-xl">
+        <div class="flex items-center gap-3">
+            <div id="macrophageAvatar" class="w-10 h-10 rounded-full bg-rose-500/20 border-2 border-rose-400 flex items-center justify-center text-xl transition-all duration-300">
+                🧬
+            </div>
+            <div>
+                <h1 class="text-base sm:text-lg font-bold bg-gradient-to-r from-rose-400 via-amber-300 to-cyan-300 bg-clip-text text-transparent">
+                    InmunoDefensores
+                </h1>
+                <p id="levelSubtitle" class="text-xs text-rose-300/80 font-medium">Nivel 1: Invasión en la Piel</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3 sm:gap-6 text-xs sm:text-sm">
+            <div class="text-center">
+                <span class="text-[10px] sm:text-xs text-slate-400 block uppercase tracking-wider">Puntuación</span>
+                <span id="scoreText" class="text-base sm:text-xl font-bold text-amber-400">0</span>
+            </div>
+            <div class="text-center">
+                <span class="text-[10px] sm:text-xs text-slate-400 block uppercase tracking-wider">Fase</span>
+                <span id="waveText" class="text-base sm:text-xl font-bold text-cyan-400">1/4</span>
+            </div>
+            <div class="text-center">
+                <span class="text-[10px] sm:text-xs text-slate-400 block uppercase tracking-wider">Tejido</span>
+                <div class="flex items-center gap-1 mt-0.5" id="livesContainer">
+                    <!-- Dynamic Hearts -->
+                </div>
+            </div>
+            <button id="soundBtn" class="bg-slate-800 hover:bg-slate-700 text-slate-200 p-2 rounded-xl border border-slate-700 text-sm transition">🔊</button>
+            <button id="pauseBtn" class="bg-slate-800 hover:bg-slate-700 text-slate-200 p-2 rounded-xl border border-slate-700 text-sm transition">⏸️</button>
+        </div>
+    </header>
+
+    <!-- Active Effects Indicator Bar -->
+    <div id="effectsBar" class="w-full max-w-4xl flex items-center justify-center gap-2 mb-2 h-6 text-xs font-semibold">
+        <!-- Active powerup pills dynamically injected here -->
+    </div>
+
+    <!-- Main Game Area Container -->
+    <div class="relative w-full max-w-4xl flex items-center justify-center">
+        <!-- Canvas Core -->
+        <canvas id="gameCanvas" class="w-full h-auto max-h-[72vh] rounded-2xl border-2 border-rose-900/60 block"></canvas>
+
+        <!-- Start / Info Transition / Game Over Overlays -->
+        <div id="overlayScreen" class="absolute inset-0 bg-slate-950/95 backdrop-blur-md rounded-2xl flex flex-col items-center justify-center p-6 text-center z-20">
+            <div id="modalContent" class="max-w-xl">
+                <div id="modalBadge" class="inline-block px-3 py-1 rounded-full bg-rose-500/20 text-rose-300 text-xs font-bold uppercase tracking-wider mb-3 border border-rose-500/30">
+                    Kurzgesagt Inspired Simulation
+                </div>
+                <div id="modalIcon" class="text-6xl mb-3 animate-bounce">🦠</div>
+                <h2 id="modalTitle" class="text-2xl sm:text-3xl font-extrabold text-rose-400 mb-2 glow-text">
+                    ¡Corte en la Piel Detectado!
+                </h2>
+                <div id="modalFactBox" class="bg-slate-900/90 border border-slate-800 rounded-xl p-4 mb-5 text-left text-xs sm:text-sm text-slate-300 leading-relaxed space-y-2">
+                    <p id="modalDesc">
+                        Una herida ha perforado la epidermis. Miles de bacterias <strong class="text-emerald-400">E. coli</strong> y <strong class="text-amber-400">Staphylococcus</strong> están ingresando al torrente tisular. 
+                    </p>
+                    <p id="modalFact" class="italic text-cyan-300/90 border-l-2 border-cyan-400 pl-3 py-1">
+                        💡 <strong>Dato Inmunológico:</strong> Un solo milímetro cuadrado de piel lesionada puede dar entrada a millones de bacterias en pocos minutos.
+                    </p>
+                </div>
+                <button id="startBtn" class="w-full py-3.5 px-8 bg-gradient-to-r from-rose-500 via-amber-500 to-rose-600 hover:from-rose-600 hover:to-amber-600 text-white font-bold text-base sm:text-lg rounded-2xl shadow-xl transform transition active:scale-95 glow-box">
+                    ¡Desplegar Macrófagos!
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PowerUp Legend -->
+    <footer class="w-full max-w-4xl mt-2 px-4 py-2 bg-slate-900/70 rounded-xl border border-slate-800/80 flex flex-wrap justify-between items-center gap-2 text-[11px] sm:text-xs text-slate-400">
+        <div class="flex items-center gap-2">
+            <span class="font-bold text-slate-200">Controles:</span>
+            <span>⬅️➡️ / Ratón | <kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-700 text-slate-300 font-mono">Espacio</kbd> Lanza Pelota</span>
+        </div>
+        <div class="flex items-center gap-3 flex-wrap">
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-rose-400 inline-block"></span> [T] Célula T (Furia)</span>
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"></span> [Y] Lluvia Anticuerpos</span>
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-cyan-400 inline-block"></span> [N] Redes NETs</span>
+            <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block"></span> [C] Citoquinas (Multi-bola)</span>
+        </div>
+    </footer>
+
+    <script>
+        // Audio Synthesizer via Web Audio API
+        class AudioSynth {
+            constructor() {
+                this.ctx = null;
+                this.muted = false;
+            }
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            }
+            playHit(type = 'bounce') {
+                if (!this.ctx || this.muted) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                if (type === 'bounce') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(280, now);
+                    osc.frequency.exponentialRampToValueAtTime(560, now + 0.07);
+                    gain.gain.setValueAtTime(0.25, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.07);
+                    osc.start(now);
+                    osc.stop(now + 0.07);
+                } else if (type === 'block') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(420, now);
+                    osc.frequency.exponentialRampToValueAtTime(120, now + 0.09);
+                    gain.gain.setValueAtTime(0.35, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.09);
+                    osc.start(now);
+                    osc.stop(now + 0.09);
+                } else if (type === 'shoot') {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(600, now);
+                    osc.frequency.exponentialRampToValueAtTime(200, now + 0.08);
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+                    osc.start(now);
+                    osc.stop(now + 0.08);
+                } else if (type === 'powerup') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(350, now);
+                    osc.frequency.linearRampToValueAtTime(850, now + 0.18);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
+                    osc.start(now);
+                    osc.stop(now + 0.18);
+                } else if (type === 'loss') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(220, now);
+                    osc.frequency.linearRampToValueAtTime(60, now + 0.35);
+                    gain.gain.setValueAtTime(0.4, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+                    osc.start(now);
+                    osc.stop(now + 0.35);
+                }
+            }
+        }
+
+        const audio = new AudioSynth();
+
+        // Game Elements & DOM Elements
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const overlayScreen = document.getElementById('overlayScreen');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalDesc = document.getElementById('modalDesc');
+        const modalFact = document.getElementById('modalFact');
+        const modalIcon = document.getElementById('modalIcon');
+        const startBtn = document.getElementById('startBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const soundBtn = document.getElementById('soundBtn');
+        const scoreText = document.getElementById('scoreText');
+        const waveText = document.getElementById('waveText');
+        const livesContainer = document.getElementById('livesContainer');
+        const levelSubtitle = document.getElementById('levelSubtitle');
+        const effectsBar = document.getElementById('effectsBar');
+        const macrophageAvatar = document.getElementById('macrophageAvatar');
+
+        const INTERNAL_WIDTH = 800;
+        const INTERNAL_HEIGHT = 600;
+        canvas.width = INTERNAL_WIDTH;
+        canvas.height = INTERNAL_HEIGHT;
+
+        let gameRunning = false;
+        let isPaused = false;
+        let score = 0;
+        let lives = 3;
+        let currentLevel = 1;
+        let animationFrameId = null;
+
+        // Level Information Data directly matching Kurzgesagt Immune Video
+        const levelData = {
+            1: {
+                title: "Invasión en la Piel",
+                subtitle: "Nivel 1: Invasión en la Piel / Herida",
+                icon: "🩺",
+                desc: "Una brecha en la epidermis permite la entrada de bacterias básicas y detritos celulares. Los macrófagos residentes inician la primera línea de defensa fagocitando patógenos e invocando refuerzos.",
+                fact: "💡 Los macrófagos devoran bacterias trágandolas enteras y disolviéndolas en vesículas de ácido altamente mortales."
+            },
+            2: {
+                title: "Respuesta Innata Avanzada",
+                subtitle: "Nivel 2: Neutrófilos y Trampas NETs",
+                icon: "💥",
+                desc: "La infección se intensifica. Bacterias encapsuladas resistentes liberan toxinas. Se activan los neutrófilos, los soldados suicidas del cuerpo que se autodestruyen liberando redes de ADN (NETs) para atrapar patógenos.",
+                fact: "💡 Las 'NETs' (Neutrophil Extracellular Traps) son redes hechas del propio ADN del neutrófilo impregnado de enzimas químicas letales."
+            },
+            3: {
+                title: "Nódulo Linfático & Respuesta Adaptativa",
+                subtitle: "Nivel 3: Células T y Células B",
+                icon: "🛡️",
+                desc: "Las Células Dendríticas han viajado al nódulo linfático para presentar los antígenos. Las Células T Auxiliares activan a las Células B, desatando una producción masiva de miles de anticuerpos en forma de 'Y'.",
+                fact: "💡 Una sola Célula B activada puede fabricar hasta 2,000 anticuerpos por segundo orientados específicamente contra esa bacteria."
+            },
+            4: {
+                title: "Batalla Final: La Supercolonia",
+                subtitle: "Nivel 4: Eliminación Total y Memoria",
+                icon: "👾",
+                desc: "Enfrenta a la colonia patógena mutante. Destruye la superbacteria central antes de que el tejido colapse por completo y asegura la creación de Células de Memoria Inmune para el futuro.",
+                fact: "💡 Las Células de Memoria recuerdan este patógeno por décadas, haciendo que nunca vuelvas a enfermar gravemente del mismo microbe."
+            }
+        };
+
+        // Macrophage Paddle State
+        const paddle = {
+            width: 130,
+            baseWidth: 130,
+            height: 22,
+            x: INTERNAL_WIDTH / 2 - 65,
+            y: INTERNAL_HEIGHT - 45,
+            speed: 9.5,
+            color: '#f43f5e',
+            enraged: false,
+            enragedTimer: 0,
+            antibodyLauncher: false,
+            antibodyTimer: 0,
+            lastShootTime: 0
+        };
+
+        // Complement Protein Ball State
+        class Ball {
+            constructor(x, y, dx, dy) {
+                this.x = x;
+                this.y = y;
+                this.radius = 9;
+                this.dx = dx;
+                this.dy = dy;
+                this.trail = [];
+                this.attached = true; // Attached to paddle initially
+            }
+
+            update() {
+                if (this.attached) {
+                    this.x = paddle.x + paddle.width / 2;
+                    this.y = paddle.y - this.radius - 2;
+                    return;
+                }
+
+                this.trail.push({ x: this.x, y: this.y });
+                if (this.trail.length > 7) this.trail.shift();
+
+                this.x += this.dx;
+                this.y += this.dy;
+
+                // Wall Collisions
+                if (this.x - this.radius <= 0) {
+                    this.x = this.radius;
+                    this.dx *= -1;
+                    audio.playHit('bounce');
+                } else if (this.x + this.radius >= INTERNAL_WIDTH) {
+                    this.x = INTERNAL_WIDTH - this.radius;
+                    this.dx *= -1;
+                    audio.playHit('bounce');
+                }
+
+                if (this.y - this.radius <= 0) {
+                    this.y = this.radius;
+                    this.dy *= -1;
+                    audio.playHit('bounce');
+                }
+            }
+
+            draw() {
+                // Trail Effect
+                for (let i = 0; i < this.trail.length; i++) {
+                    const p = this.trail[i];
+                    const alpha = (i + 1) / this.trail.length * 0.35;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, this.radius * (i / this.trail.length), 0, Math.PI * 2);
+                    ctx.fillStyle = paddle.enraged ? `rgba(245, 158, 11, ${alpha})` : `rgba(56, 189, 248, ${alpha})`;
+                    ctx.fill();
+                }
+
+                // Ball Core
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = paddle.enraged ? '#f59e0b' : '#38bdf8';
+                ctx.shadowColor = paddle.enraged ? '#d97706' : '#0284c7';
+                ctx.shadowBlur = 12;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+
+                // Inner Highlight
+                ctx.beginPath();
+                ctx.arc(this.x - 2, this.y - 2, this.radius * 0.35, 0, Math.PI * 2);
+                ctx.fillStyle = '#ffffff';
+                ctx.fill();
+            }
+        }
+
+        let balls = [];
+
+        // Projectile Classes (Antibodies & Toxins)
+        class AntibodyProjectile {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.speed = 10;
+                this.radius = 6;
+            }
+            update() {
+                this.y -= this.speed;
+            }
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.strokeStyle = '#fbbf24';
+                ctx.lineWidth = 3;
+                // Draw Y shape antibody
+                ctx.beginPath();
+                ctx.moveTo(0, 6);
+                ctx.lineTo(0, -1);
+                ctx.moveTo(0, -1);
+                ctx.lineTo(-5, -7);
+                ctx.moveTo(0, -1);
+                ctx.lineTo(5, -7);
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        class ToxinProjectile {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.speed = 3.5;
+                this.radius = 6;
+            }
+            update() {
+                this.y += this.speed;
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = '#a855f7';
+                ctx.shadowColor = '#7e22ce';
+                ctx.shadowBlur = 8;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+        }
+
+        let antibodyProjectiles = [];
+        let toxinProjectiles = [];
+
+        // Blocks / Enemies Class
+        class Block {
+            constructor(x, y, width, height, type) {
+                this.x = x;
+                this.y = y;
+                this.width = width;
+                this.height = height;
+                this.type = type; // 'green', 'orange_shield', 'debris', 'toxin_bacteria', 'boss'
+                this.opsonized = false; // Complement marked state
+
+                if (type === 'green') {
+                    this.hp = 1;
+                    this.color = '#22c55e';
+                } else if (type === 'orange_shield') {
+                    this.hp = 3;
+                    this.color = '#f97316';
+                } else if (type === 'debris') {
+                    this.hp = 1;
+                    this.color = '#64748b';
+                } else if (type === 'toxin_bacteria') {
+                    this.hp = 2;
+                    this.color = '#a855f7';
+                } else if (type === 'boss') {
+                    this.hp = 35;
+                    this.color = '#dc2626';
+                }
+                this.maxHp = this.hp;
+                this.lastToxinTime = Date.now() + Math.random() * 2000;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                // Main Block Body
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.roundRect(0, 0, this.width, this.height, this.type === 'boss' ? 14 : 8);
+                ctx.fill();
+
+                // Vector Highlight Header
+                ctx.fillStyle = 'rgba(255,255,255,0.25)';
+                ctx.beginPath();
+                ctx.roundRect(3, 3, this.width - 6, this.height * 0.4, 5);
+                ctx.fill();
+
+                // Opsonized Marker Ring
+                if (this.opsonized) {
+                    ctx.strokeStyle = '#38bdf8';
+                    ctx.lineWidth = 2.5;
+                    ctx.strokeRect(-2, -2, this.width + 4, this.height + 4);
+                }
+
+                // Eyes / Features for Bacteria
+                if (this.type !== 'debris') {
+                    ctx.fillStyle = '#ffffff';
+                    const eyeY = this.height * 0.45;
+                    ctx.beginPath();
+                    ctx.arc(this.width * 0.3, eyeY, 4, 0, Math.PI * 2);
+                    ctx.arc(this.width * 0.7, eyeY, 4, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = '#0f172a';
+                    ctx.beginPath();
+                    ctx.arc(this.width * 0.3, eyeY, 2, 0, Math.PI * 2);
+                    ctx.arc(this.width * 0.7, eyeY, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                // Boss Extra UI Bar
+                if (this.type === 'boss') {
+                    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+                    ctx.fillRect(5, this.height - 10, this.width - 10, 6);
+                    ctx.fillStyle = '#22c55e';
+                    ctx.fillRect(5, this.height - 10, (this.width - 10) * (this.hp / this.maxHp), 6);
+                }
+
+                // Damage indicator
+                if (this.hp < this.maxHp && this.type !== 'boss') {
+                    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+                    ctx.fillRect(0, 0, this.width, this.height * (1 - this.hp / this.maxHp));
+                }
+
+                ctx.restore();
+            }
+        }
+
+        let blocks = [];
+
+        // Power-Up Drops
+        class PowerUp {
+            constructor(x, y, type) {
+                this.x = x;
+                this.y = y;
+                this.radius = 13;
+                this.speedY = 2.0;
+                this.type = type; // 'T', 'Y', 'N', 'C', 'M'
+            }
+
+            update() {
+                this.y += this.speedY;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+
+                let color = '#f43f5e';
+                let label = 'T';
+
+                if (this.type === 'T') { color = '#f43f5e'; label = 'T'; }
+                else if (this.type === 'Y') { color = '#f59e0b'; label = 'Y'; }
+                else if (this.type === 'N') { color = '#38bdf8'; label = 'N'; }
+                else if (this.type === 'C') { color = '#10b981'; label = 'C'; }
+                else if (this.type === 'M') { color = '#a855f7'; label = 'M'; }
+
+                ctx.fillStyle = color;
+                ctx.shadowColor = color;
+                ctx.shadowBlur = 10;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 12px Fredoka';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(label, this.x, this.y);
+                ctx.restore();
+            }
+        }
+
+        let powerUps = [];
+
+        // Particles
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.radius = Math.random() * 4 + 2;
+                this.color = color;
+                this.dx = (Math.random() - 0.5) * 7;
+                this.dy = (Math.random() - 0.5) * 7;
+                this.alpha = 1;
+                this.decay = Math.random() * 0.03 + 0.02;
+            }
+
+            update() {
+                this.x += this.dx;
+                this.y += this.dy;
+                this.alpha -= this.decay;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, this.alpha);
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        let particles = [];
+
+        // NETs NET Defense Barrier State
+        let hasNETsShield = false;
+        let netsTimer = 0;
+
+        // Level Generator
+        function loadLevel(levelNum) {
+            blocks = [];
+            powerUps = [];
+            particles = [];
+            antibodyProjectiles = [];
+            toxinProjectiles = [];
+
+            const cols = 8;
+            const blockWidth = 85;
+            const blockHeight = 28;
+            const padding = 10;
+            const offsetLeft = (INTERNAL_WIDTH - (cols * (blockWidth + padding) - padding)) / 2;
+
+            levelSubtitle.innerText = levelData[levelNum].subtitle;
+
+            if (levelNum === 1) {
+                // Skin Cut Level
+                for (let r = 0; r < 4; r++) {
+                    for (let c = 0; c < cols; c++) {
+                        const x = offsetLeft + c * (blockWidth + padding);
+                        const y = 65 + r * (blockHeight + padding);
+                        let type = (r === 0 || r === 1) ? 'green' : 'debris';
+                        blocks.push(new Block(x, y, blockWidth, blockHeight, type));
+                    }
+                }
+            } else if (levelNum === 2) {
+                // Innate Advanced Response
+                for (let r = 0; r < 5; r++) {
+                    for (let c = 0; c < cols; c++) {
+                        const x = offsetLeft + c * (blockWidth + padding);
+                        const y = 65 + r * (blockHeight + padding);
+                        let type = 'green';
+                        if (r === 0 || r === 1) type = 'orange_shield';
+                        else if (c % 2 === 0 && r === 2) type = 'toxin_bacteria';
+                        else if (r === 4) type = 'debris';
+                        blocks.push(new Block(x, y, blockWidth, blockHeight, type));
+                    }
+                }
+            } else if (levelNum === 3) {
+                // Adaptive Lymph Node Level
+                for (let r = 0; r < 5; r++) {
+                    for (let c = 0; c < cols; c++) {
+                        const x = offsetLeft + c * (blockWidth + padding);
+                        const y = 65 + r * (blockHeight + padding);
+                        let type = (c + r) % 2 === 0 ? 'orange_shield' : 'toxin_bacteria';
+                        blocks.push(new Block(x, y, blockWidth, blockHeight, type));
+                    }
+                }
+            } else if (levelNum === 4) {
+                // Boss Supercolony Level
+                const bossWidth = 240;
+                const bossHeight = 70;
+                blocks.push(new Block(INTERNAL_WIDTH / 2 - bossWidth / 2, 70, bossWidth, bossHeight, 'boss'));
+
+                for (let r = 0; r < 3; r++) {
+                    for (let c = 0; c < cols; c++) {
+                        const x = offsetLeft + c * (blockWidth + padding);
+                        const y = 160 + r * (blockHeight + padding);
+                        let type = r === 0 ? 'orange_shield' : 'toxin_bacteria';
+                        blocks.push(new Block(x, y, blockWidth, blockHeight, type));
+                    }
+                }
+            }
+
+            resetPaddleAndBall();
+        }
+
+        function resetPaddleAndBall() {
+            paddle.width = paddle.baseWidth;
+            paddle.x = INTERNAL_WIDTH / 2 - paddle.width / 2;
+            paddle.enraged = false;
+            paddle.antibodyLauncher = false;
+            updateMacrophageUI();
+
+            balls = [new Ball(INTERNAL_WIDTH / 2, INTERNAL_HEIGHT - 60, 4, -6)];
+        }
+
+        function updateMacrophageUI() {
+            if (paddle.enraged) {
+                macrophageAvatar.innerText = '😡';
+                macrophageAvatar.className = "w-10 h-10 rounded-full bg-amber-500/30 border-2 border-amber-400 flex items-center justify-center text-xl animate-pulse";
+            } else {
+                macrophageAvatar.innerText = '🧬';
+                macrophageAvatar.className = "w-10 h-10 rounded-full bg-rose-500/20 border-2 border-rose-400 flex items-center justify-center text-xl";
+            }
+
+            // Render active powerup badges in HUD
+            effectsBar.innerHTML = '';
+            if (paddle.enraged) {
+                effectsBar.innerHTML += `<span class="px-2 py-0.5 rounded-full bg-rose-500/20 border border-rose-500 text-rose-300">[T] Macrófago Furioso</span>`;
+            }
+            if (paddle.antibodyLauncher) {
+                effectsBar.innerHTML += `<span class="px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-500 text-amber-300">[Y] Lluvia Anticuerpos</span>`;
+            }
+            if (hasNETsShield) {
+                effectsBar.innerHTML += `<span class="px-2 py-0.5 rounded-full bg-cyan-500/20 border border-cyan-500 text-cyan-300">[N] Redes NETs Activas</span>`;
+            }
+        }
+
+        function createExplosion(x, y, color, count = 12) {
+            for (let i = 0; i < count; i++) {
+                particles.push(new Particle(x, y, color));
+            }
+        }
+
+        // Input Listeners
+        let keyLeft = false;
+        let keyRight = false;
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a') keyLeft = true;
+            if (e.key === 'ArrowRight' || e.key === 'd') keyRight = true;
+            if (e.key === ' ' || e.code === 'Space') {
+                balls.forEach(b => {
+                    if (b.attached) {
+                        b.attached = false;
+                        audio.playHit('shoot');
+                    }
+                });
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a') keyLeft = false;
+            if (e.key === 'ArrowRight' || e.key === 'd') keyRight = false;
+        });
+
+        function handlePointerMove(clientX) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = INTERNAL_WIDTH / rect.width;
+            const mouseX = (clientX - rect.left) * scaleX;
+            paddle.x = Math.max(0, Math.min(INTERNAL_WIDTH - paddle.width, mouseX - paddle.width / 2));
+        }
+
+        canvas.addEventListener('mousemove', (e) => handlePointerMove(e.clientX));
+        canvas.addEventListener('touchmove', (e) => {
+            if (e.touches.length > 0) handlePointerMove(e.touches[0].clientX);
+        }, { passive: true });
+
+        canvas.addEventListener('click', () => {
+            balls.forEach(b => {
+                if (b.attached) {
+                    b.attached = false;
+                    audio.playHit('shoot');
+                }
+            });
+        });
+
+        // Power-Up Activation
+        function applyPowerUp(type) {
+            if (type === 'T') {
+                // T-Helper Cell War Cry: Enrages Macrophage
+                paddle.enraged = true;
+                paddle.enragedTimer = Date.now() + 8000;
+                paddle.width = paddle.baseWidth * 1.35;
+                updateMacrophageUI();
+            } else if (type === 'Y') {
+                // Antibody Rain Launcher
+                paddle.antibodyLauncher = true;
+                paddle.antibodyTimer = Date.now() + 7000;
+                updateMacrophageUI();
+            } else if (type === 'N') {
+                // Neutrophil NETs Bottom Net Shield
+                hasNETsShield = true;
+                netsTimer = Date.now() + 10000;
+                updateMacrophageUI();
+            } else if (type === 'C') {
+                // Cytokines: Multi-ball
+                if (balls.length > 0) {
+                    const b = balls[0];
+                    balls.push(new Ball(b.x, b.y, -b.dx || 4, b.dy || -6));
+                    balls.push(new Ball(b.x, b.y, (b.dx || 4) * 0.7, -Math.abs(b.dy || 6)));
+                    balls.forEach(ball => ball.attached = false);
+                }
+            } else if (type === 'M') {
+                // Memory Cell: Extra Life/Health Restore
+                lives = Math.min(5, lives + 1);
+                updateLivesUI();
+            }
+        }
+
+        // Main Loop Update Logic
+        function update() {
+            if (!gameRunning || isPaused) return;
+
+            // Keyboard Movement
+            if (keyLeft) paddle.x = Math.max(0, paddle.x - paddle.speed);
+            if (keyRight) paddle.x = Math.min(INTERNAL_WIDTH - paddle.width, paddle.x + paddle.speed);
+
+            // Active Powerup Timers
+            const now = Date.now();
+            if (paddle.enraged && now > paddle.enragedTimer) {
+                paddle.enraged = false;
+                paddle.width = paddle.baseWidth;
+                updateMacrophageUI();
+            }
+
+            if (paddle.antibodyLauncher && now > paddle.antibodyTimer) {
+                paddle.antibodyLauncher = false;
+                updateMacrophageUI();
+            }
+
+            if (hasNETsShield && now > netsTimer) {
+                hasNETsShield = false;
+                updateMacrophageUI();
+            }
+
+            // Automatic Antibody Cannon
+            if (paddle.antibodyLauncher && now - paddle.lastShootTime > 300) {
+                antibodyProjectiles.push(new AntibodyProjectile(paddle.x + 15, paddle.y));
+                antibodyProjectiles.push(new AntibodyProjectile(paddle.x + paddle.width - 15, paddle.y));
+                paddle.lastShootTime = now;
+                audio.playHit('shoot');
+            }
+
+            // Update Antibody Projectiles
+            antibodyProjectiles.forEach((ab, abIdx) => {
+                ab.update();
+                blocks.forEach((block, bIdx) => {
+                    if (
+                        ab.x >= block.x && ab.x <= block.x + block.width &&
+                        ab.y >= block.y && ab.y <= block.y + block.height
+                    ) {
+                        block.hp -= 1;
+                        createExplosion(ab.x, ab.y, '#f59e0b', 5);
+                        audio.playHit('block');
+                        antibodyProjectiles.splice(abIdx, 1);
+
+                        if (block.hp <= 0) {
+                            score += block.type === 'boss' ? 500 : 25;
+                            scoreText.innerText = score;
+                            createExplosion(block.x + block.width / 2, block.y + block.height / 2, block.color, 12);
+                            blocks.splice(bIdx, 1);
+                        }
+                    }
+                });
+                if (ab.y < 0) antibodyProjectiles.splice(abIdx, 1);
+            });
+
+            // Enemy Toxin Projectiles Spawner
+            blocks.forEach(block => {
+                if ((block.type === 'toxin_bacteria' || block.type === 'boss') && now - block.lastToxinTime > (block.type === 'boss' ? 1200 : 3000)) {
+                    toxinProjectiles.push(new ToxinProjectile(block.x + block.width / 2, block.y + block.height));
+                    block.lastToxinTime = now;
+                }
+            });
+
+            // Update Toxins
+            toxinProjectiles.forEach((tox, tIdx) => {
+                tox.update();
+                // Collision with Paddle Macrophage
+                if (
+                    tox.y + tox.radius >= paddle.y &&
+                    tox.y - tox.radius <= paddle.y + paddle.height &&
+                    tox.x >= paddle.x && tox.x <= paddle.x + paddle.width
+                ) {
+                    toxinProjectiles.splice(tIdx, 1);
+                    createExplosion(tox.x, tox.y, '#a855f7', 10);
+                    lives--;
+                    audio.playHit('loss');
+                    updateLivesUI();
+                    if (lives <= 0) endGame(false);
+                } else if (tox.y > INTERNAL_HEIGHT) {
+                    toxinProjectiles.splice(tIdx, 1);
+                }
+            });
+
+            // Update Particles
+            particles.forEach((p, index) => {
+                p.update();
+                if (p.alpha <= 0) particles.splice(index, 1);
+            });
+
+            // Update PowerUps
+            powerUps.forEach((pu, index) => {
+                pu.update();
+                if (
+                    pu.y + pu.radius >= paddle.y &&
+                    pu.y - pu.radius <= paddle.y + paddle.height &&
+                    pu.x >= paddle.x && pu.x <= paddle.x + paddle.width
+                ) {
+                    audio.playHit('powerup');
+                    applyPowerUp(pu.type);
+                    powerUps.splice(index, 1);
+                } else if (pu.y > INTERNAL_HEIGHT) {
+                    powerUps.splice(index, 1);
+                }
+            });
+
+            // Update Balls
+            balls.forEach((ball, bIndex) => {
+                ball.update();
+
+                // Paddle Collision
+                if (
+                    !ball.attached &&
+                    ball.y + ball.radius >= paddle.y &&
+                    ball.y - ball.radius <= paddle.y + paddle.height &&
+                    ball.x >= paddle.x && ball.x <= paddle.x + paddle.width &&
+                    ball.dy > 0
+                ) {
+                    audio.playHit('bounce');
+                    let hitPoint = (ball.x - (paddle.x + paddle.width / 2)) / (paddle.width / 2);
+                    let angle = hitPoint * (Math.PI / 2.8);
+                    let speed = Math.sqrt(ball.dx * ball.dx + ball.dy * ball.dy);
+
+                    ball.dx = speed * Math.sin(angle);
+                    ball.dy = -speed * Math.cos(angle);
+                }
+
+                // NETs Shield Collision
+                if (hasNETsShield && ball.y + ball.radius >= INTERNAL_HEIGHT - 12) {
+                    ball.dy *= -1;
+                    audio.playHit('bounce');
+                    createExplosion(ball.x, INTERNAL_HEIGHT - 10, '#38bdf8', 8);
+                }
+
+                // Ball Out Of Bounds
+                if (ball.y - ball.radius > INTERNAL_HEIGHT) {
+                    balls.splice(bIndex, 1);
+                }
+
+                // Block Collisions
+                blocks.forEach((block, index) => {
+                    if (
+                        ball.x + ball.radius > block.x &&
+                        ball.x - ball.radius < block.x + block.width &&
+                        ball.y + ball.radius > block.y &&
+                        ball.y - ball.radius < block.y + block.height
+                    ) {
+                        ball.dy *= -1;
+                        let damage = paddle.enraged ? 2 : 1;
+                        block.hp -= damage;
+                        block.opsonized = true;
+
+                        audio.playHit('block');
+                        createExplosion(ball.x, ball.y, block.color, 8);
+
+                        if (block.hp <= 0) {
+                            score += block.type === 'boss' ? 1000 : 30;
+                            scoreText.innerText = score;
+                            createExplosion(block.x + block.width / 2, block.y + block.height / 2, block.color, 18);
+
+                            // Power-Up Drops
+                            if (Math.random() < 0.35) {
+                                const types = ['T', 'Y', 'N', 'C', 'M'];
+                                const chosen = types[Math.floor(Math.random() * types.length)];
+                                powerUps.push(new PowerUp(block.x + block.width / 2, block.y + block.height / 2, chosen));
+                            }
+
+                            blocks.splice(index, 1);
+                        }
+                    }
+                });
+            });
+
+            // Check Life Loss
+            if (balls.length === 0) {
+                lives--;
+                audio.playHit('loss');
+                updateLivesUI();
+
+                if (lives <= 0) {
+                    endGame(false);
+                } else {
+                    resetPaddleAndBall();
+                }
+            }
+
+            // Check Level Victory
+            if (blocks.length === 0) {
+                if (currentLevel < 4) {
+                    currentLevel++;
+                    waveText.innerText = `${currentLevel}/4`;
+                    showLevelTransitionModal(currentLevel);
+                } else {
+                    endGame(true);
+                }
+            }
+        }
+
+        function updateLivesUI() {
+            livesContainer.innerHTML = '';
+            for (let i = 0; i < lives; i++) {
+                livesContainer.innerHTML += '<span class="text-rose-500 text-sm sm:text-base">❤️</span>';
+            }
+        }
+
+        // Draw Function
+        function draw() {
+            ctx.clearRect(0, 0, INTERNAL_WIDTH, INTERNAL_HEIGHT);
+
+            // NETs Shield Line
+            if (hasNETsShield) {
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 6;
+                ctx.beginPath();
+                ctx.moveTo(0, INTERNAL_HEIGHT - 8);
+                ctx.lineTo(INTERNAL_WIDTH, INTERNAL_HEIGHT - 8);
+                ctx.stroke();
+
+                // Draw NET mesh pattern
+                ctx.strokeStyle = 'rgba(56, 189, 248, 0.3)';
+                ctx.lineWidth = 2;
+                for (let x = 0; x < INTERNAL_WIDTH; x += 20) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, INTERNAL_HEIGHT - 16);
+                    ctx.lineTo(x + 10, INTERNAL_HEIGHT);
+                    ctx.stroke();
+                }
+            }
+
+            // Draw Blocks
+            blocks.forEach(block => block.draw());
+
+            // Draw Projectiles
+            antibodyProjectiles.forEach(ab => ab.draw());
+            toxinProjectiles.forEach(tox => tox.draw());
+
+            // Draw PowerUps
+            powerUps.forEach(pu => pu.draw());
+
+            // Draw Particles
+            particles.forEach(p => p.draw());
+
+            // Draw Macrophage Paddle
+            ctx.save();
+            ctx.fillStyle = paddle.enraged ? '#f59e0b' : paddle.color;
+            ctx.shadowColor = paddle.enraged ? '#d97706' : '#e11d48';
+            ctx.shadowBlur = 16;
+            ctx.beginPath();
+            ctx.roundRect(paddle.x, paddle.y, paddle.width, paddle.height, 12);
+            ctx.fill();
+
+            // Pseudopods / Macrophage Detail
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(paddle.x + paddle.width * 0.25, paddle.y + paddle.height / 2, 4, 0, Math.PI * 2);
+            ctx.arc(paddle.x + paddle.width * 0.75, paddle.y + paddle.height / 2, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            if (paddle.antibodyLauncher) {
+                ctx.fillStyle = '#fbbf24';
+                ctx.fillRect(paddle.x + 10, paddle.y - 6, 8, 8);
+                ctx.fillRect(paddle.x + paddle.width - 18, paddle.y - 6, 8, 8);
+            }
+            ctx.restore();
+
+            // Draw Balls
+            balls.forEach(ball => ball.draw());
+        }
+
+        // Render Loop
+        function gameLoop() {
+            update();
+            draw();
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        function showLevelTransitionModal(levelNum) {
+            gameRunning = false;
+            overlayScreen.classList.remove('hidden');
+
+            const info = levelData[levelNum];
+            modalIcon.innerText = info.icon;
+            modalTitle.innerText = `¡${info.title}!`;
+            modalDesc.innerHTML = info.desc;
+            modalFact.innerHTML = info.fact;
+            startBtn.innerText = `Comenzar ${info.subtitle}`;
+        }
+
+        function startGame() {
+            audio.init();
+            if (currentLevel === 1 && lives <= 0) {
+                score = 0;
+                lives = 3;
+                scoreText.innerText = score;
+            }
+            waveText.innerText = `${currentLevel}/4`;
+            updateLivesUI();
+
+            overlayScreen.classList.add('hidden');
+            gameRunning = true;
+            isPaused = false;
+
+            loadLevel(currentLevel);
+            if (!animationFrameId) {
+                gameLoop();
+            }
+        }
+
+        function endGame(isWin) {
+            gameRunning = false;
+            overlayScreen.classList.remove('hidden');
+
+            if (isWin) {
+                modalIcon.innerText = "🏆";
+                modalTitle.innerText = "¡Infección Eliminada!";
+                modalTitle.className = "text-2xl sm:text-3xl font-extrabold text-emerald-400 mb-2 glow-text";
+                modalDesc.innerHTML = `¡Has coordinado con éxito la respuesta innata y adaptativa! Las Células de Memoria Inmune guardarán este registro para proteger al organismo en el futuro.<br><br><strong>Puntuación Final: ${score}</strong>`;
+                modalFact.innerText = "💡 ¡Completaste todos los niveles inmunológicos inspirados en Kurzgesagt!";
+                currentLevel = 1;
+                startBtn.innerText = "Jugar de Nuevo";
+            } else {
+                modalIcon.innerText = "💀";
+                modalTitle.innerText = "¡El Tejido Ha Colapsado!";
+                modalTitle.className = "text-2xl sm:text-3xl font-extrabold text-rose-500 mb-2 glow-text";
+                modalDesc.innerHTML = `Los patógenos han superado las defensas. La infección se propagó por el torrente sanguíneo.<br><br><strong>Puntuación: ${score}</strong>`;
+                modalFact.innerText = "💡 Inténta recolectar los Power-Ups [T] Célula T y [N] NETs para mantener bajo control las toxinas.";
+                currentLevel = 1;
+                startBtn.innerText = "Reintentar Respuesta Inmune";
+            }
+        }
+
+        // Audio & Pause Controls
+        pauseBtn.addEventListener('click', () => {
+            if (!gameRunning) return;
+            isPaused = !isPaused;
+            pauseBtn.innerText = isPaused ? '▶️' : '⏸️';
+        });
+
+        soundBtn.addEventListener('click', () => {
+            audio.muted = !audio.muted;
+            soundBtn.innerText = audio.muted ? '🔇' : '🔊';
+        });
+
+        startBtn.addEventListener('click', startGame);
+
+        // Initial Render
+        draw();
+    </script>
+</body>
+</html>
